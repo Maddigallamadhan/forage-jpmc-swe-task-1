@@ -17,26 +17,36 @@
 #  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
 #  FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 #  DEALINGS IN THE SOFTWARE.
+import json
+import random
+import urllib.request
 
-import unittest
-from client3 import getDataPoint
+# Server API URLs
+QUERY = "http://localhost:8080/query?id={}"
+N = 500
+def getDataPoint(quote):
+    stock = quote['stock']
+    bid_price = float(quote['top_bid']['price'])
+    ask_price = float(quote['top_ask']['price'])
+    price = (bid_price + ask_price) / 2  # Updated to calculate average price
+    return stock, bid_price, ask_price, price
+def getRatio(price_a, price_b):
+    if price_b == 0:
+        return None  # Return None to handle division by zero
+    return price_a / price_b
+if __name__ == "__main__":
+    # Query the price once every N seconds.
+    for _ in iter(range(N)):
+        quotes = json.loads(urllib.request.urlopen(QUERY.format(random.random())).read())
+        prices = {}  # Dictionary to store the prices for each stock
 
-class ClientTest(unittest.TestCase):
-    def test_getDataPoint_calculatePrice(self):
-        quotes = [
-            {'top_ask': {'price': 121.2, 'size': 36}, 'timestamp': '2019-02-11 22:06:30.572453', 'top_bid': {'price': 120.48, 'size': 109}, 'id': '0.109974697771', 'stock': 'ABC'},
-            {'top_ask': {'price': 121.68, 'size': 4}, 'timestamp': '2019-02-11 22:06:30.572453', 'top_bid': {'price': 117.87, 'size': 81}, 'id': '0.109974697771', 'stock': 'DEF'}
-        ]
         for quote in quotes:
-            self.assertEqual(getDataPoint(quote), (quote['stock'], quote['top_bid']['price'], quote['top_ask']['price'], (quote['top_bid']['price'] + quote['top_ask']['price']) / 2))
+            stock, bid_price, ask_price, price = getDataPoint(quote)
+            prices[stock] = price  # Store the price in the dictionary
+            print("Quoted %s at (bid:%s, ask:%s, price:%s)" % (stock, bid_price, ask_price, price))
 
-    def test_getDataPoint_calculatePriceBidGreaterThanAsk(self):
-        quotes = [
-            {'top_ask': {'price': 119.2, 'size': 36}, 'timestamp': '2019-02-11 22:06:30.572453', 'top_bid': {'price': 120.48, 'size': 109}, 'id': '0.109974697771', 'stock': 'ABC'},
-            {'top_ask': {'price': 121.68, 'size': 4}, 'timestamp': '2019-02-11 22:06:30.572453', 'top_bid': {'price': 117.87, 'size': 81}, 'id': '0.109974697771', 'stock': 'DEF'}
-        ]
-        for quote in quotes:
-            self.assertEqual(getDataPoint(quote), (quote['stock'], quote['top_bid']['price'], quote['top_ask']['price'], (quote['top_bid']['price'] + quote['top_ask']['price']) / 2))
-
-if __name__ == '__main__':
-    unittest.main()
+        # Assuming there are two stocks A and B in the quotes
+        stock_keys = list(prices.keys())
+        if len(stock_keys) >= 2:
+            ratio = getRatio(prices[stock_keys[0]], prices[stock_keys[1]])
+            print("Ratio %s" % ratio)
